@@ -1,0 +1,1242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PulmoCare Clinical Suite - Pulmonary Health & Lung Monitoring</title>
+
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .badge-critical { background-color: #fee2e2; color: #991b1b; border: 1px solid #f87171; }
+        .badge-high { background-color: #ffedd5; color: #9a3412; border: 1px solid #fb923c; }
+        .badge-moderate { background-color: #fef9c3; color: #854d0e; border: 1px solid #facc15; }
+        .badge-low { background-color: #dcfce7; color: #166534; border: 1px solid #4ade80; }
+        .patient-chip-active { border-color: #0d9488; background-color: #f0fdfa; color: #115e59; font-weight: 600; box-shadow: 0 1px 2px rgba(13,148,136,0.15); }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 antialiased min-h-screen flex flex-col font-sans">
+
+    <!-- Top Clinic Navigation Header -->
+    <header class="bg-slate-900 text-white shadow-md sticky top-0 z-40">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex justify-between items-center">
+            <div class="flex items-center space-x-3">
+                <div class="bg-teal-500 text-slate-900 p-2 rounded-xl font-bold flex items-center justify-center shadow-sm">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
+                    </svg>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold tracking-tight text-white flex items-center gap-2">
+                        PulmoCare <span class="text-xs bg-teal-500/20 text-teal-300 px-2 py-0.5 rounded border border-teal-500/30">Clinical Suite</span>
+                    </h1>
+                    <p class="text-xs text-slate-400">Metropolitan Pulmonary Associates • Cardiopulmonary Diagnostics Lab</p>
+                </div>
+            </div>
+
+            <div class="flex items-center space-x-3">
+                <button onclick="openModal('registerPatientModal')" class="bg-teal-600 hover:bg-teal-500 text-white text-xs font-semibold px-3.5 py-2 rounded-lg shadow transition flex items-center gap-1.5">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                    New Patient Intake
+                </button>
+                <a href="/swagger-ui.html" target="_blank" class="bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium px-3 py-2 rounded-lg border border-slate-700 transition flex items-center gap-1">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path></svg>
+                    Swagger API
+                </a>
+                <a href="/h2-console" target="_blank" class="bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium px-3 py-2 rounded-lg border border-slate-700 transition flex items-center gap-1">
+                    H2 Console
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Workspace -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-1 w-full space-y-6">
+
+        <!-- Metrics Overview Cards -->
+        <section class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+            <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
+                <span class="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Total Cohort</span>
+                <span id="metricTotalPatients" class="text-2xl font-bold text-slate-900 mt-1">--</span>
+                <span class="text-[11px] text-slate-400 mt-1">Active patients</span>
+            </div>
+            <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
+                <span class="text-[11px] font-semibold text-rose-600 uppercase tracking-wider">Critical Risks</span>
+                <span id="metricCriticalPatients" class="text-2xl font-bold text-rose-600 mt-1">--</span>
+                <span class="text-[11px] text-rose-400 mt-1">High attention triage</span>
+            </div>
+            <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
+                <span class="text-[11px] font-semibold text-amber-600 uppercase tracking-wider">Active Alerts</span>
+                <span id="metricActiveAlerts" class="text-2xl font-bold text-amber-600 mt-1">--</span>
+                <span class="text-[11px] text-amber-500 mt-1">Needs clinician review</span>
+            </div>
+            <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
+                <span class="text-[11px] font-semibold text-sky-600 uppercase tracking-wider">Mean Cohort SpO₂</span>
+                <span id="metricAvgSpo2" class="text-2xl font-bold text-sky-700 mt-1">--%</span>
+                <span class="text-[11px] text-slate-400 mt-1">O2 saturation mean</span>
+            </div>
+            <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
+                <span class="text-[11px] font-semibold text-indigo-600 uppercase tracking-wider">Mean FEV₁ Volume</span>
+                <span id="metricAvgFev1" class="text-2xl font-bold text-indigo-700 mt-1">-- L</span>
+                <span class="text-[11px] text-slate-400 mt-1">1-sec forced volume</span>
+            </div>
+            <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
+                <span class="text-[11px] font-semibold text-emerald-600 uppercase tracking-wider">Telemetry Sets</span>
+                <span id="metricTelemetryCount" class="text-2xl font-bold text-emerald-700 mt-1">--</span>
+                <span class="text-[11px] text-slate-400 mt-1">Recorded sessions</span>
+            </div>
+        </section>
+
+        <!-- Emergency Alerts Banner -->
+        <div id="alertsBannerContainer" class="hidden">
+            <div class="bg-red-50 border-l-4 border-red-500 p-4 rounded-r-xl shadow-sm">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-3">
+                        <svg class="h-6 w-6 text-red-600 flex-shrink-0 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                        <div>
+                            <h3 class="text-sm font-bold text-red-800">Critical Clinical Alerts Detected</h3>
+                            <p id="alertsBannerText" class="text-xs text-red-700 mt-0.5">One or more patients are displaying severe hypoxemia or acute respiratory distress.</p>
+                        </div>
+                    </div>
+                    <button onclick="scrollToAlertsSection()" class="text-xs font-semibold bg-red-600 hover:bg-red-700 text-white px-3.5 py-1.5 rounded-lg shadow">
+                        Review Alerts
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Patient Switcher & Clinical Action Toolbar -->
+        <section class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-3">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div class="flex items-center space-x-3 w-full md:w-auto">
+                    <label for="patientSelect" class="text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap">Active Patient:</label>
+                    <select id="patientSelect" onchange="onPatientSelected(this.value)" class="bg-slate-50 border border-slate-300 text-slate-900 text-sm rounded-lg focus:ring-teal-500 focus:border-teal-500 block w-full md:w-80 p-2 font-semibold">
+                        <option value="" disabled selected>Loading patients...</option>
+                    </select>
+                </div>
+
+                <div class="flex flex-wrap items-center gap-2 w-full md:w-auto justify-end">
+                    <button onclick="openModal('recordDataModal')" class="bg-sky-600 hover:bg-sky-500 text-white text-xs font-semibold px-3 py-2 rounded-lg transition flex items-center gap-1 shadow-sm">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+                        Record Vitals / Spirometry
+                    </button>
+                    <button onclick="openModal('logSymptomsModal')" class="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold px-3 py-2 rounded-lg transition flex items-center gap-1 shadow-sm">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+                        Log Symptoms
+                    </button>
+                    <button onclick="downloadPdfReport()" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold px-3 py-2 rounded-lg transition flex items-center gap-1 shadow-sm">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                        Download Clinical PDF
+                    </button>
+                    <button onclick="downloadCsvTelemetry()" class="bg-slate-700 hover:bg-slate-600 text-white text-xs font-semibold px-3 py-2 rounded-lg transition flex items-center gap-1 shadow-sm">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                        Export CSV
+                    </button>
+                </div>
+            </div>
+
+            <!-- Clickable Quick-Select Patient Chips -->
+            <div class="pt-2 border-t border-slate-100 flex items-center gap-2 overflow-x-auto text-xs">
+                <span class="text-slate-400 font-medium whitespace-nowrap">Quick Switch:</span>
+                <div id="quickPatientChips" class="flex items-center gap-2">
+                    <!-- Populated dynamically via JS -->
+                </div>
+            </div>
+        </section>
+
+        <!-- Selected Patient Demographics & Health Profile Banner -->
+        <section id="patientProfileBanner" class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-slate-100 pb-4">
+                <div class="flex items-center space-x-3.5">
+                    <div id="patientAvatarBadge" class="w-12 h-12 rounded-full bg-teal-600 text-white font-extrabold flex items-center justify-center text-base shadow-sm">
+                        --
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2.5 flex-wrap">
+                            <h2 id="patientNameHeader" class="text-xl font-bold text-slate-900">Loading Patient...</h2>
+                            <span id="patientDiagnosisBadge" class="text-xs bg-slate-100 text-slate-700 px-2.5 py-0.5 rounded-full font-semibold border border-slate-300">--</span>
+                            <span id="patientRiskLevelBadge" class="text-xs px-2.5 py-0.5 rounded-full font-bold">--</span>
+                        </div>
+                        <p id="patientMetaInfo" class="text-xs text-slate-500 mt-1">MRN: -- | Age: -- | Sex: -- | BMI: --</p>
+                    </div>
+                </div>
+                <div class="text-right flex flex-col md:items-end">
+                    <span class="text-xs text-slate-500">Pulmonary Risk Index</span>
+                    <div class="flex items-baseline gap-1 mt-0.5">
+                        <span id="patientRiskScoreLarge" class="text-3xl font-extrabold text-slate-900">--</span>
+                        <span class="text-xs text-slate-400">/ 100</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 text-xs">
+                <div>
+                    <span class="text-slate-400">Smoking History:</span>
+                    <p id="patientSmokingText" class="font-medium text-slate-800 mt-0.5">--</p>
+                </div>
+                <div>
+                    <span class="text-slate-400">Occupational / Environmental:</span>
+                    <p id="patientHazardText" class="font-medium text-slate-800 mt-0.5">--</p>
+                </div>
+                <div>
+                    <span class="text-slate-400">Emergency Contact:</span>
+                    <p id="patientEmergencyText" class="font-medium text-slate-800 mt-0.5">--</p>
+                </div>
+                <div>
+                    <span class="text-slate-400">Last Telemetry Session:</span>
+                    <p id="patientLastRecordedText" class="font-medium text-slate-800 mt-0.5">--</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Two Column Workspace: Telemetry & Spirometry (Left) vs Risk & Decision Guidance (Right) -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+            <!-- Left Column: Respiratory Data & Lung Function (7 cols) -->
+            <div class="lg:col-span-7 space-y-6">
+
+                <!-- Real-time Physiological Vitals Cards -->
+                <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-4">
+                    <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+                        <h3 class="text-sm font-bold text-slate-800 flex items-center gap-2">
+                            <span class="w-2.5 h-2.5 rounded-full bg-teal-500 animate-pulse"></span>
+                            Latest Respiratory Vitals & Telemetry
+                        </h3>
+                        <span id="vitalsContextTag" class="text-[11px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-medium">Routine</span>
+                    </div>
+
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+                        <div class="bg-slate-50 p-3 rounded-lg border border-slate-200">
+                            <span class="text-[11px] font-medium text-slate-500 block">Oxygen (SpO₂)</span>
+                            <span id="vitalSpo2" class="text-2xl font-bold text-slate-900 mt-1 block">--%</span>
+                            <span id="vitalSpo2Status" class="text-[10px] font-semibold text-slate-400">Normal</span>
+                        </div>
+                        <div class="bg-slate-50 p-3 rounded-lg border border-slate-200">
+                            <span class="text-[11px] font-medium text-slate-500 block">Resp Rate</span>
+                            <span id="vitalRespRate" class="text-2xl font-bold text-slate-900 mt-1 block">-- bpm</span>
+                            <span id="vitalRespRateStatus" class="text-[10px] font-semibold text-slate-400">Normal</span>
+                        </div>
+                        <div class="bg-slate-50 p-3 rounded-lg border border-slate-200">
+                            <span class="text-[11px] font-medium text-slate-500 block">Heart Rate</span>
+                            <span id="vitalHeartRate" class="text-2xl font-bold text-slate-900 mt-1 block">-- bpm</span>
+                            <span class="text-[10px] text-slate-400">Pulse rate</span>
+                        </div>
+                        <div class="bg-slate-50 p-3 rounded-lg border border-slate-200">
+                            <span class="text-[11px] font-medium text-slate-500 block">Ambient AQI</span>
+                            <span id="vitalAqi" class="text-2xl font-bold text-slate-900 mt-1 block">--</span>
+                            <span id="vitalAqiStatus" class="text-[10px] font-semibold text-slate-400">Air quality</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Spirometry Mechanics & ATS/ERS Norms Table -->
+                <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-4">
+                    <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+                        <div>
+                            <h3 class="text-sm font-bold text-slate-800">Spirometric Mechanics & Ventilatory Profile</h3>
+                            <p class="text-xs text-slate-500">ATS/ERS standard predicted norms based on patient age, sex & height</p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span id="spiroPatternBadge" class="text-xs font-semibold px-2.5 py-1 rounded-full bg-slate-100 text-slate-700">Normal</span>
+                            <span id="spiroGoldBadge" class="text-xs font-semibold px-2 py-0.5 rounded bg-slate-100 text-slate-700">GOLD --</span>
+                        </div>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-xs text-left text-slate-600">
+                            <thead class="text-[11px] uppercase bg-slate-50 text-slate-500 border-b border-slate-200">
+                                <tr>
+                                    <th class="py-2.5 px-3">Parameter</th>
+                                    <th class="py-2.5 px-3 text-right">Measured</th>
+                                    <th class="py-2.5 px-3 text-right">Predicted</th>
+                                    <th class="py-2.5 px-3 text-right">% Predicted</th>
+                                    <th class="py-2.5 px-3 text-center">Clinical Range</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100 font-medium">
+                                <tr>
+                                    <td class="py-2.5 px-3 font-semibold text-slate-800">FEV₁ (1-sec forced volume)</td>
+                                    <td id="spiroFev1Meas" class="py-2.5 px-3 text-right font-mono text-slate-900">-- L</td>
+                                    <td id="spiroFev1Pred" class="py-2.5 px-3 text-right font-mono text-slate-500">-- L</td>
+                                    <td id="spiroFev1Pct" class="py-2.5 px-3 text-right font-mono font-bold text-slate-900">--%</td>
+                                    <td id="spiroFev1Bar" class="py-2.5 px-3 text-center">--</td>
+                                </tr>
+                                <tr>
+                                    <td class="py-2.5 px-3 font-semibold text-slate-800">FVC (Forced vital capacity)</td>
+                                    <td id="spiroFvcMeas" class="py-2.5 px-3 text-right font-mono text-slate-900">-- L</td>
+                                    <td id="spiroFvcPred" class="py-2.5 px-3 text-right font-mono text-slate-500">-- L</td>
+                                    <td id="spiroFvcPct" class="py-2.5 px-3 text-right font-mono font-bold text-slate-900">--%</td>
+                                    <td id="spiroFvcBar" class="py-2.5 px-3 text-center">--</td>
+                                </tr>
+                                <tr>
+                                    <td class="py-2.5 px-3 font-semibold text-slate-800">FEV₁ / FVC Ratio</td>
+                                    <td id="spiroRatioMeas" class="py-2.5 px-3 text-right font-mono font-bold text-slate-900">--</td>
+                                    <td id="spiroRatioPred" class="py-2.5 px-3 text-right font-mono text-slate-500">--</td>
+                                    <td class="py-2.5 px-3 text-right text-slate-400">Norm: ≥ 0.70</td>
+                                    <td id="spiroRatioStatus" class="py-2.5 px-3 text-center">--</td>
+                                </tr>
+                                <tr>
+                                    <td class="py-2.5 px-3 font-semibold text-slate-800">PEF (Peak expiratory flow)</td>
+                                    <td id="spiroPefMeas" class="py-2.5 px-3 text-right font-mono text-slate-900">-- L/min</td>
+                                    <td id="spiroPefPred" class="py-2.5 px-3 text-right font-mono text-slate-500">-- L/min</td>
+                                    <td id="spiroPefPct" class="py-2.5 px-3 text-right font-mono font-bold text-slate-900">--%</td>
+                                    <td id="spiroPefStatus" class="py-2.5 px-3 text-center">--</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="bg-slate-50 p-3 rounded-lg border border-slate-200 text-xs">
+                        <span class="font-semibold text-slate-700 block mb-1">Pulmonologist Assessment:</span>
+                        <p id="spiroInterpretationText" class="text-slate-600 italic">No spirometry reading recorded yet.</p>
+                    </div>
+                </div>
+
+                <!-- Longitudinal Trend Chart -->
+                <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-3">
+                    <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+                        <h3 class="text-sm font-bold text-slate-800">Longitudinal Respiratory Trends</h3>
+                        <div class="flex items-center space-x-3 text-xs">
+                            <span class="inline-flex items-center text-teal-600 font-semibold">
+                                <span class="w-3 h-3 bg-teal-500 rounded-full inline-block mr-1"></span> FEV₁ Volume (L)
+                            </span>
+                            <span class="inline-flex items-center text-sky-600 font-semibold">
+                                <span class="w-3 h-3 bg-sky-500 rounded-full inline-block mr-1"></span> SpO₂ Saturation (%)
+                            </span>
+                        </div>
+                    </div>
+                    <div class="h-64 w-full">
+                        <canvas id="trendChart"></canvas>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Right Column: Risk Stratification, Symptoms & Clinical Actions (5 cols) -->
+            <div class="lg:col-span-5 space-y-6">
+
+                <!-- Risk Stratification Card -->
+                <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-4">
+                    <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+                        <h3 class="text-sm font-bold text-slate-800">Clinical Risk Stratification</h3>
+                        <span id="riskBadgeDetail" class="text-xs px-2.5 py-1 rounded-full font-bold">--</span>
+                    </div>
+
+                    <!-- Visual Risk Meter -->
+                    <div>
+                        <div class="flex justify-between text-[10px] font-bold text-slate-500 mb-1 uppercase tracking-wide">
+                            <span>Low (0-24)</span>
+                            <span>Moderate (25-54)</span>
+                            <span>High (55-79)</span>
+                            <span>Critical (80+)</span>
+                        </div>
+                        <div class="w-full bg-slate-200 rounded-full h-3 overflow-hidden flex shadow-inner">
+                            <div class="bg-emerald-500 h-full w-1/4"></div>
+                            <div class="bg-yellow-400 h-full w-1/4"></div>
+                            <div class="bg-orange-500 h-full w-1/4"></div>
+                            <div class="bg-rose-600 h-full w-1/4"></div>
+                        </div>
+                        <div class="relative mt-1">
+                            <div id="riskScorePointer" class="text-xs font-bold text-slate-800 transition-all duration-300" style="margin-left: 0%;">
+                                ▲ <span id="riskScorePointerText">0</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Identified Risk Factors -->
+                    <div>
+                        <span class="text-xs font-bold text-slate-700 block mb-1.5">Identified Risk Factors:</span>
+                        <ul id="riskFactorsList" class="space-y-1 text-xs text-slate-600">
+                            <li class="text-slate-400 italic">No adverse risk factors identified.</li>
+                        </ul>
+                    </div>
+
+                    <!-- Clinical Action Guidance -->
+                    <div class="pt-2 border-t border-slate-100">
+                        <span class="text-xs font-bold text-teal-800 block mb-1.5 flex items-center gap-1">
+                            <svg class="w-3.5 h-3.5 text-teal-600" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg>
+                            Clinical Action Guidance:
+                        </span>
+                        <ul id="clinicalRecommendationsList" class="space-y-1.5 text-xs text-slate-700 font-medium">
+                            <li class="text-slate-400 italic">No pending actions.</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Latest Symptom Complex -->
+                <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-4">
+                    <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+                        <h3 class="text-sm font-bold text-slate-800">Symptom Complex & Burden</h3>
+                        <span id="symptomScoreBadge" class="text-xs font-bold bg-slate-100 text-slate-700 px-2.5 py-1 rounded-full">Score: -- / 30</span>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3 text-xs">
+                        <div class="bg-slate-50 p-2.5 rounded border border-slate-200">
+                            <span class="text-slate-400 block text-[10px] uppercase font-semibold">Cough Severity</span>
+                            <span id="symCoughSeverity" class="font-bold text-slate-800">--</span>
+                        </div>
+                        <div class="bg-slate-50 p-2.5 rounded border border-slate-200">
+                            <span class="text-slate-400 block text-[10px] uppercase font-semibold">Cough Type</span>
+                            <span id="symCoughType" class="font-bold text-slate-800">--</span>
+                        </div>
+                        <div class="bg-slate-50 p-2.5 rounded border border-slate-200">
+                            <span class="text-slate-400 block text-[10px] uppercase font-semibold">mMRC Dyspnea Scale</span>
+                            <span id="symMmrc" class="font-bold text-slate-800">Grade --</span>
+                        </div>
+                        <div class="bg-slate-50 p-2.5 rounded border border-slate-200">
+                            <span class="text-slate-400 block text-[10px] uppercase font-semibold">Wheezing Present</span>
+                            <span id="symWheezing" class="font-bold text-slate-800">--</span>
+                        </div>
+                        <div class="bg-slate-50 p-2.5 rounded border border-slate-200">
+                            <span class="text-slate-400 block text-[10px] uppercase font-semibold">Sputum Purulence</span>
+                            <span id="symSputum" class="font-bold text-slate-800">--</span>
+                        </div>
+                        <div class="bg-slate-50 p-2.5 rounded border border-slate-200">
+                            <span class="text-slate-400 block text-[10px] uppercase font-semibold">Night Awakening</span>
+                            <span id="symNocturnal" class="font-bold text-slate-800">--</span>
+                        </div>
+                    </div>
+
+                    <div id="symNotesContainer" class="bg-amber-50/70 p-2.5 rounded border border-amber-200 text-xs hidden">
+                        <span class="font-semibold text-amber-900 block text-[11px]">Patient / Caregiver Notes:</span>
+                        <p id="symNotesText" class="text-amber-800 mt-0.5"></p>
+                    </div>
+                </div>
+
+                <!-- Active Patient Alerts Card -->
+                <div id="patientAlertsCard" class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-3">
+                    <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+                        <h3 class="text-sm font-bold text-slate-800 flex items-center gap-1.5">
+                            <svg class="w-4 h-4 text-rose-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>
+                            Active Alerts for this Patient
+                        </h3>
+                        <span id="patientAlertsCount" class="text-xs bg-rose-100 text-rose-800 px-2 py-0.5 rounded-full font-bold">0</span>
+                    </div>
+
+                    <div id="patientAlertsList" class="space-y-2 text-xs">
+                        <p class="text-slate-400 italic">No active unacknowledged alerts for this patient.</p>
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-white border-t border-slate-200 py-4 mt-8">
+        <div class="max-w-7xl mx-auto px-4 text-center text-xs text-slate-500">
+            PulmoCare Clinical Suite &copy; 2026. Metropolitan Pulmonary Associates • Built with Java 22, Spring Boot 3.3.4, and OpenPDF.
+        </div>
+    </footer>
+
+    <!-- ==================== MODALS ==================== -->
+
+    <!-- Modal 1: Register Patient -->
+    <div id="registerPatientModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-6 space-y-4">
+            <div class="flex justify-between items-center border-b pb-3">
+                <h3 class="text-lg font-bold text-slate-900">Patient Intake Registration</h3>
+                <button onclick="closeModal('registerPatientModal')" class="text-slate-400 hover:text-slate-600 font-bold text-lg">&times;</button>
+            </div>
+            <form id="registerPatientForm" onsubmit="handleRegisterPatient(event)" class="space-y-3 text-xs">
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="font-semibold text-slate-700 block mb-1">Medical Record Number (MRN) *</label>
+                        <input type="text" name="medicalRecordNumber" required placeholder="e.g. MRN-2026-005" class="w-full border rounded p-2 focus:ring-teal-500">
+                    </div>
+                    <div>
+                        <label class="font-semibold text-slate-700 block mb-1">Full Legal Name *</label>
+                        <input type="text" name="fullName" required placeholder="e.g. Jonathan Reed" class="w-full border rounded p-2 focus:ring-teal-500">
+                    </div>
+                </div>
+                <div class="grid grid-cols-3 gap-3">
+                    <div>
+                        <label class="font-semibold text-slate-700 block mb-1">Date of Birth *</label>
+                        <input type="date" name="dateOfBirth" required class="w-full border rounded p-2 focus:ring-teal-500">
+                    </div>
+                    <div>
+                        <label class="font-semibold text-slate-700 block mb-1">Biological Sex *</label>
+                        <select name="sex" required class="w-full border rounded p-2 focus:ring-teal-500">
+                            <option value="MALE">MALE</option>
+                            <option value="FEMALE">FEMALE</option>
+                            <option value="OTHER">OTHER</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="font-semibold text-slate-700 block mb-1">Primary Diagnosis</label>
+                        <input type="text" name="primaryDiagnosis" placeholder="COPD, Asthma, etc." class="w-full border rounded p-2 focus:ring-teal-500">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="font-semibold text-slate-700 block mb-1">Height (cm) *</label>
+                        <input type="number" step="0.1" name="heightCm" required placeholder="172.0" class="w-full border rounded p-2 focus:ring-teal-500">
+                    </div>
+                    <div>
+                        <label class="font-semibold text-slate-700 block mb-1">Weight (kg) *</label>
+                        <input type="number" step="0.1" name="weightKg" required placeholder="70.0" class="w-full border rounded p-2 focus:ring-teal-500">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="font-semibold text-slate-700 block mb-1">Smoking History *</label>
+                        <select name="smokingStatus" required class="w-full border rounded p-2 focus:ring-teal-500">
+                            <option value="NEVER_SMOKER">Never Smoker</option>
+                            <option value="FORMER_SMOKER">Former Smoker</option>
+                            <option value="CURRENT_SMOKER">Current Smoker</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="font-semibold text-slate-700 block mb-1">Pack-Years <span class="text-slate-400 font-normal">(1 pk/day x 1 yr)</span></label>
+                        <input type="number" step="0.5" name="packYears" value="0.0" class="w-full border rounded p-2 focus:ring-teal-500">
+                    </div>
+                </div>
+                <div>
+                    <label class="font-semibold text-slate-700 block mb-1">Workplace / Environmental Hazard</label>
+                    <input type="text" name="occupationalExposure" placeholder="Silica, dust, asbestos, chemical fumes, or None" class="w-full border rounded p-2 focus:ring-teal-500">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="font-semibold text-slate-700 block mb-1">Emergency Contact Name</label>
+                        <input type="text" name="emergencyContactName" placeholder="Full name & relation" class="w-full border rounded p-2 focus:ring-teal-500">
+                    </div>
+                    <div>
+                        <label class="font-semibold text-slate-700 block mb-1">Emergency Phone</label>
+                        <input type="text" name="emergencyContactPhone" placeholder="+1-555-..." class="w-full border rounded p-2 focus:ring-teal-500">
+                    </div>
+                </div>
+
+                <div class="flex justify-end space-x-2 pt-3 border-t">
+                    <button type="button" onclick="closeModal('registerPatientModal')" class="px-4 py-2 border rounded font-medium text-slate-600 hover:bg-slate-100">Cancel</button>
+                    <button type="submit" class="px-4 py-2 bg-teal-600 hover:bg-teal-500 text-white font-semibold rounded shadow">Save Patient Record</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal 2: Record Vitals & Spirometry -->
+    <div id="recordDataModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-6 space-y-4">
+            <div class="flex justify-between items-center border-b pb-3">
+                <h3 class="text-lg font-bold text-slate-900">Record Vitals & Spirometry</h3>
+                <button onclick="closeModal('recordDataModal')" class="text-slate-400 hover:text-slate-600 font-bold text-lg">&times;</button>
+            </div>
+            <form id="recordDataForm" onsubmit="handleRecordData(event)" class="space-y-3 text-xs">
+                <div class="bg-teal-50 p-2.5 rounded-lg text-teal-800 font-medium">
+                    Patient: <span id="modalRecordPatientName" class="font-bold">--</span>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="font-semibold text-slate-700 block mb-1">FEV₁ (Litres) *</label>
+                        <input type="number" step="0.01" name="fev1" required placeholder="e.g. 2.45" class="w-full border rounded p-2 focus:ring-sky-500">
+                    </div>
+                    <div>
+                        <label class="font-semibold text-slate-700 block mb-1">FVC (Litres) *</label>
+                        <input type="number" step="0.01" name="fvc" required placeholder="e.g. 3.40" class="w-full border rounded p-2 focus:ring-sky-500">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="font-semibold text-slate-700 block mb-1">Peak Expiratory Flow (L/min)</label>
+                        <input type="number" step="1" name="pef" placeholder="e.g. 420" class="w-full border rounded p-2 focus:ring-sky-500">
+                    </div>
+                    <div>
+                        <label class="font-semibold text-slate-700 block mb-1">Oxygen Saturation SpO₂ (%) *</label>
+                        <input type="number" step="0.1" name="spo2" required placeholder="e.g. 96.0" class="w-full border rounded p-2 focus:ring-sky-500">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-3 gap-3">
+                    <div>
+                        <label class="font-semibold text-slate-700 block mb-1">Resp Rate (bpm) *</label>
+                        <input type="number" name="respiratoryRate" required placeholder="e.g. 18" class="w-full border rounded p-2 focus:ring-sky-500">
+                    </div>
+                    <div>
+                        <label class="font-semibold text-slate-700 block mb-1">Heart Rate (bpm)</label>
+                        <input type="number" name="heartRate" placeholder="e.g. 75" class="w-full border rounded p-2 focus:ring-sky-500">
+                    </div>
+                    <div>
+                        <label class="font-semibold text-slate-700 block mb-1">Body Temp (°C)</label>
+                        <input type="number" step="0.1" name="bodyTemperatureCelsius" placeholder="37.0" class="w-full border rounded p-2 focus:ring-sky-500">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="font-semibold text-slate-700 block mb-1">Ambient Air Quality (AQI)</label>
+                        <input type="number" name="aqiIndex" placeholder="e.g. 45" class="w-full border rounded p-2 focus:ring-sky-500">
+                    </div>
+                    <div>
+                        <label class="font-semibold text-slate-700 block mb-1">Testing Context</label>
+                        <select name="measurementContext" class="w-full border rounded p-2 focus:ring-sky-500">
+                            <option value="ROUTINE">Routine Follow-up</option>
+                            <option value="POST_BRONCHODILATOR">Post-Bronchodilator Reversibility</option>
+                            <option value="SYMPTOM_FLARE">Acute Symptom Flare</option>
+                            <option value="EXACERBATION_EVENT">Emergency Exacerbation</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="flex items-center space-x-2 pt-1">
+                    <input type="checkbox" id="inhalerUsedPreTest" name="inhalerUsedPreTest" class="rounded text-sky-600 focus:ring-sky-500">
+                    <label for="inhalerUsedPreTest" class="font-medium text-slate-700">Bronchodilator / rescue inhaler administered before test</label>
+                </div>
+
+                <div>
+                    <label class="font-semibold text-slate-700 block mb-1">Technician / Clinic Notes</label>
+                    <textarea name="notes" rows="2" placeholder="Patient effort, coughing during forced exhalation, or clinical comments..." class="w-full border rounded p-2 focus:ring-sky-500"></textarea>
+                </div>
+
+                <div class="flex justify-end space-x-2 pt-3 border-t">
+                    <button type="button" onclick="closeModal('recordDataModal')" class="px-4 py-2 border rounded font-medium text-slate-600 hover:bg-slate-100">Cancel</button>
+                    <button type="submit" class="px-4 py-2 bg-sky-600 hover:bg-sky-500 text-white font-semibold rounded shadow">Save Telemetry</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal 3: Log Symptoms -->
+    <div id="logSymptomsModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-6 space-y-4">
+            <div class="flex justify-between items-center border-b pb-3">
+                <h3 class="text-lg font-bold text-slate-900">Record Respiratory Symptoms</h3>
+                <button onclick="closeModal('logSymptomsModal')" class="text-slate-400 hover:text-slate-600 font-bold text-lg">&times;</button>
+            </div>
+            <form id="logSymptomsForm" onsubmit="handleLogSymptoms(event)" class="space-y-3 text-xs">
+                <div class="bg-indigo-50 p-2.5 rounded-lg text-indigo-800 font-medium">
+                    Patient: <span id="modalSymptomPatientName" class="font-bold">--</span>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="font-semibold text-slate-700 block mb-1">Cough Severity</label>
+                        <select name="coughSeverity" class="w-full border rounded p-2 focus:ring-indigo-500">
+                            <option value="NONE">None</option>
+                            <option value="MILD">Mild (Occasional)</option>
+                            <option value="MODERATE">Moderate (Frequent)</option>
+                            <option value="SEVERE">Severe (Constant / Disabling)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="font-semibold text-slate-700 block mb-1">Cough Type</label>
+                        <select name="coughType" class="w-full border rounded p-2 focus:ring-indigo-500">
+                            <option value="NONE">None</option>
+                            <option value="DRY">Dry / Hacking</option>
+                            <option value="PRODUCTIVE">Productive (with phlegm)</option>
+                            <option value="HEMOPTYSIS">Hemoptysis (Blood in cough)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="font-semibold text-slate-700 block mb-1">Breathlessness (mMRC Dyspnea Scale)</label>
+                    <select name="shortnessOfBreathScale" class="w-full border rounded p-2 focus:ring-indigo-500">
+                        <option value="0">Grade 0: Breathless only during strenuous exercise</option>
+                        <option value="1">Grade 1: Short of breath when hurrying or walking up a slight hill</option>
+                        <option value="2">Grade 2: Walks slower than contemporaries or stops for breath</option>
+                        <option value="3">Grade 3: Stops for breath after ~100m or after few minutes on level</option>
+                        <option value="4">Grade 4: Too breathless to leave house or dress/undress</option>
+                    </select>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="font-semibold text-slate-700 block mb-1">Chest Tightness</label>
+                        <select name="chestTightness" class="w-full border rounded p-2 focus:ring-indigo-500">
+                            <option value="NONE">None</option>
+                            <option value="MILD">Mild</option>
+                            <option value="MODERATE">Moderate</option>
+                            <option value="SEVERE">Severe</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="font-semibold text-slate-700 block mb-1">Sputum Color / Purulence</label>
+                        <select name="sputumColor" class="w-full border rounded p-2 focus:ring-indigo-500">
+                            <option value="NONE">None</option>
+                            <option value="CLEAR_OR_WHITE">Clear or White</option>
+                            <option value="YELLOW">Yellow (Early bacterial purulence)</option>
+                            <option value="GREEN">Green (Active purulent infection)</option>
+                            <option value="RUST_BROWN">Rust Brown</option>
+                            <option value="BLOOD_STAINED">Blood Stained</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="space-y-1.5 pt-1">
+                    <div class="flex items-center space-x-2">
+                        <input type="checkbox" id="symWheezingCheck" name="wheezingPresent" class="rounded text-indigo-600">
+                        <label for="symWheezingCheck" class="font-medium text-slate-700">Audible wheezing or chest whistling</label>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <input type="checkbox" id="symNocturnalCheck" name="nocturnalAwakening" class="rounded text-indigo-600">
+                        <label for="symNocturnalCheck" class="font-medium text-slate-700">Wakes up at night due to breathlessness or coughing</label>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <input type="checkbox" id="symActivityCheck" name="activityLimitation" class="rounded text-indigo-600">
+                        <label for="symActivityCheck" class="font-medium text-slate-700">Daily routine or walking activities restricted</label>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <input type="checkbox" id="symFeverCheck" name="feverPresent" class="rounded text-indigo-600">
+                        <label for="symFeverCheck" class="font-medium text-slate-700">Fever or chills</label>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="font-semibold text-slate-700 block mb-1">Patient Report / Clinical Notes</label>
+                    <textarea name="additionalNotes" rows="2" placeholder="Patient describes triggers, symptom progression..." class="w-full border rounded p-2 focus:ring-indigo-500"></textarea>
+                </div>
+
+                <div class="flex justify-end space-x-2 pt-3 border-t">
+                    <button type="button" onclick="closeModal('logSymptomsModal')" class="px-4 py-2 border rounded font-medium text-slate-600 hover:bg-slate-100">Cancel</button>
+                    <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded shadow">Save Symptoms</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Application Script -->
+    <script>
+        let currentPatientId = null;
+        let trendChartInstance = null;
+        let cachedPatients = [];
+
+        document.addEventListener('DOMContentLoaded', () => {
+            initChart();
+            loadDashboardMetrics();
+            loadPatientsList();
+            loadGlobalAlerts();
+        });
+
+        function initChart() {
+            const ctx = document.getElementById('trendChart').getContext('2d');
+            trendChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [
+                        {
+                            label: 'FEV₁ Volume (L)',
+                            data: [],
+                            borderColor: '#0d9488',
+                            backgroundColor: 'rgba(13, 148, 136, 0.1)',
+                            borderWidth: 2.5,
+                            pointBackgroundColor: '#0d9488',
+                            pointRadius: 4,
+                            tension: 0.3,
+                            yAxisID: 'y'
+                        },
+                        {
+                            label: 'SpO₂ Saturation (%)',
+                            data: [],
+                            borderColor: '#0284c7',
+                            backgroundColor: 'rgba(2, 132, 199, 0.1)',
+                            borderWidth: 2.5,
+                            pointBackgroundColor: '#0284c7',
+                            pointRadius: 4,
+                            tension: 0.3,
+                            yAxisID: 'y1'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            type: 'linear',
+                            display: true,
+                            position: 'left',
+                            title: { display: true, text: 'FEV₁ (Litres)' },
+                            suggestedMin: 0.5,
+                            suggestedMax: 4.5
+                        },
+                        y1: {
+                            type: 'linear',
+                            display: true,
+                            position: 'right',
+                            grid: { drawOnChartArea: false },
+                            title: { display: true, text: 'SpO₂ (%)' },
+                            suggestedMin: 80,
+                            suggestedMax: 100
+                        }
+                    }
+                }
+            });
+        }
+
+        async function loadDashboardMetrics() {
+            try {
+                const res = await fetch('/api/dashboard/metrics');
+                if (!res.ok) return;
+                const m = await res.json();
+                document.getElementById('metricTotalPatients').innerText = m.totalPatients;
+                document.getElementById('metricCriticalPatients').innerText = m.criticalRiskPatients;
+                document.getElementById('metricActiveAlerts').innerText = m.totalActiveAlerts;
+                document.getElementById('metricAvgSpo2').innerText = m.averageSystemSpo2 + '%';
+                document.getElementById('metricAvgFev1').innerText = m.averageSystemFev1 + ' L';
+                document.getElementById('metricTelemetryCount').innerText = m.totalRespiratoryReadings;
+            } catch (e) {
+                console.error("Failed to load dashboard metrics", e);
+            }
+        }
+
+        async function loadGlobalAlerts() {
+            try {
+                const res = await fetch('/api/alerts/active');
+                if (!res.ok) return;
+                const alerts = await res.json();
+                const container = document.getElementById('alertsBannerContainer');
+                if (alerts.length > 0) {
+                    container.classList.remove('hidden');
+                    const criticalCount = alerts.filter(a => a.severity === 'CRITICAL').length;
+                    document.getElementById('alertsBannerText').innerText =
+                        `${alerts.length} active clinical alert(s) requiring attention across the cohort (${criticalCount} CRITICAL).`;
+                } else {
+                    container.classList.add('hidden');
+                }
+            } catch (e) {
+                console.error("Failed to load alerts", e);
+            }
+        }
+
+        async function loadPatientsList() {
+            try {
+                const res = await fetch('/api/patients');
+                if (!res.ok) return;
+                cachedPatients = await res.json();
+                const select = document.getElementById('patientSelect');
+                select.innerHTML = '';
+
+                const chipsContainer = document.getElementById('quickPatientChips');
+                chipsContainer.innerHTML = '';
+
+                cachedPatients.forEach((p) => {
+                    const opt = document.createElement('option');
+                    opt.value = p.id;
+                    opt.text = `${p.fullName} (${p.medicalRecordNumber}) • ${p.primaryDiagnosis || 'General'}`;
+                    select.appendChild(opt);
+
+                    // Render quick patient switch chip
+                    const btn = document.createElement('button');
+                    btn.type = 'button';
+                    btn.id = `chip-patient-${p.id}`;
+                    btn.className = 'px-2.5 py-1 rounded-full border border-slate-200 text-slate-600 hover:bg-slate-50 transition text-xs flex items-center gap-1.5 whitespace-nowrap';
+                    btn.onclick = () => {
+                        select.value = p.id;
+                        onPatientSelected(p.id);
+                    };
+                    const initials = getInitials(p.fullName);
+                    btn.innerHTML = `<span class="w-4 h-4 rounded-full bg-slate-200 text-slate-700 text-[10px] font-bold inline-flex items-center justify-center">${initials}</span> <span>${p.fullName}</span>`;
+                    chipsContainer.appendChild(btn);
+                });
+
+                if (cachedPatients.length > 0) {
+                    const selectedId = currentPatientId || cachedPatients[0].id;
+                    select.value = selectedId;
+                    onPatientSelected(selectedId);
+                }
+            } catch (e) {
+                console.error("Failed to load patients list", e);
+            }
+        }
+
+        async function onPatientSelected(patientId) {
+            currentPatientId = patientId;
+
+            // Update active pill state
+            document.querySelectorAll('#quickPatientChips button').forEach(b => {
+                b.classList.remove('patient-chip-active');
+            });
+            const activeChip = document.getElementById(`chip-patient-${patientId}`);
+            if (activeChip) activeChip.classList.add('patient-chip-active');
+
+            loadPatientData(patientId);
+        }
+
+        async function loadPatientData(patientId) {
+            try {
+                const res = await fetch(`/api/reports/patient/${patientId}/summary`);
+                if (!res.ok) return;
+                const data = await res.json();
+
+                const p = data.patient;
+                document.getElementById('patientNameHeader').innerText = p.fullName;
+                document.getElementById('patientAvatarBadge').innerText = getInitials(p.fullName);
+                document.getElementById('patientDiagnosisBadge').innerText = p.primaryDiagnosis || 'No Prior Diagnosis';
+                document.getElementById('patientMetaInfo').innerText = `MRN: ${p.medicalRecordNumber} | Age: ${p.age} yrs | Sex: ${p.sex} | BMI: ${p.bmi}`;
+                document.getElementById('patientSmokingText').innerText = `${formatSmokingStatus(p.smokingStatus)} (${p.packYears} pack-years)`;
+                document.getElementById('patientHazardText').innerText = p.occupationalExposure || 'None reported';
+                document.getElementById('patientEmergencyText').innerText = p.emergencyContactName ? `${p.emergencyContactName} (${p.emergencyContactPhone || ''})` : 'None';
+
+                document.getElementById('modalRecordPatientName').innerText = `${p.fullName} (${p.medicalRecordNumber})`;
+                document.getElementById('modalSymptomPatientName').innerText = `${p.fullName} (${p.medicalRecordNumber})`;
+
+                const vitals = data.latestRespiratoryData;
+                if (vitals) {
+                    document.getElementById('vitalSpo2').innerText = `${vitals.spo2}%`;
+                    const spo2El = document.getElementById('vitalSpo2Status');
+                    if (vitals.spo2 < 85) { spo2El.innerText = 'CRITICAL HYPOXEMIA'; spo2El.className = 'text-[10px] font-bold text-red-600'; }
+                    else if (vitals.spo2 < 90) { spo2El.innerText = 'Moderate Hypoxemia'; spo2El.className = 'text-[10px] font-bold text-orange-600'; }
+                    else if (vitals.spo2 < 95) { spo2El.innerText = 'Mild Hypoxemia'; spo2El.className = 'text-[10px] font-bold text-yellow-600'; }
+                    else { spo2El.innerText = 'Normal Oxygenation'; spo2El.className = 'text-[10px] font-semibold text-emerald-600'; }
+
+                    document.getElementById('vitalRespRate').innerText = `${vitals.respiratoryRate} bpm`;
+                    const rrEl = document.getElementById('vitalRespRateStatus');
+                    if (vitals.respiratoryRate > 28) { rrEl.innerText = 'Severe Tachypnea'; rrEl.className = 'text-[10px] font-bold text-red-600'; }
+                    else if (vitals.respiratoryRate > 22) { rrEl.innerText = 'Mild Tachypnea'; rrEl.className = 'text-[10px] font-bold text-yellow-600'; }
+                    else if (vitals.respiratoryRate < 10) { rrEl.innerText = 'Bradypnea'; rrEl.className = 'text-[10px] font-bold text-red-600'; }
+                    else { rrEl.innerText = 'Normal Rate'; rrEl.className = 'text-[10px] font-semibold text-emerald-600'; }
+
+                    document.getElementById('vitalHeartRate').innerText = vitals.heartRate ? `${vitals.heartRate} bpm` : '--';
+                    document.getElementById('vitalAqi').innerText = vitals.aqiIndex !== null ? vitals.aqiIndex : '--';
+                    document.getElementById('vitalsContextTag').innerText = vitals.measurementContext || 'Routine';
+                    document.getElementById('patientLastRecordedText').innerText = formatDateTime(vitals.recordedAt);
+                } else {
+                    document.getElementById('vitalSpo2').innerText = '--%';
+                    document.getElementById('vitalRespRate').innerText = '-- bpm';
+                    document.getElementById('vitalHeartRate').innerText = '--';
+                    document.getElementById('vitalAqi').innerText = '--';
+                    document.getElementById('patientLastRecordedText').innerText = 'No telemetry logged yet';
+                }
+
+                const lf = data.lungFunctionAnalysis;
+                if (lf) {
+                    document.getElementById('spiroFev1Meas').innerText = `${lf.fev1Measured} L`;
+                    document.getElementById('spiroFev1Pred').innerText = `${lf.fev1Predicted} L`;
+                    document.getElementById('spiroFev1Pct').innerText = `${lf.fev1PercentPredicted}%`;
+                    document.getElementById('spiroFev1Bar').innerHTML = getPercentStatusPill(lf.fev1PercentPredicted);
+
+                    document.getElementById('spiroFvcMeas').innerText = `${lf.fvcMeasured} L`;
+                    document.getElementById('spiroFvcPred').innerText = `${lf.fvcPredicted} L`;
+                    document.getElementById('spiroFvcPct').innerText = `${lf.fvcPercentPredicted}%`;
+                    document.getElementById('spiroFvcBar').innerHTML = getPercentStatusPill(lf.fvcPercentPredicted);
+
+                    document.getElementById('spiroRatioMeas').innerText = lf.fev1FvcRatioMeasured;
+                    document.getElementById('spiroRatioPred').innerText = lf.fev1FvcRatioPredicted;
+                    document.getElementById('spiroRatioStatus').innerHTML = lf.fev1FvcRatioMeasured < 0.70
+                        ? `<span class="bg-red-100 text-red-700 px-2 py-0.5 rounded text-[10px] font-bold">Obstructive (&lt;0.70)</span>`
+                        : `<span class="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded text-[10px] font-bold">Normal (≥0.70)</span>`;
+
+                    document.getElementById('spiroPefMeas').innerText = lf.pefMeasured ? `${lf.pefMeasured} L/m` : '--';
+                    document.getElementById('spiroPefPred').innerText = lf.pefPredicted ? `${lf.pefPredicted} L/m` : '--';
+                    document.getElementById('spiroPefPct').innerText = lf.pefPercentPredicted ? `${lf.pefPercentPredicted}%` : '--';
+                    document.getElementById('spiroPefStatus').innerHTML = lf.pefPercentPredicted ? getPercentStatusPill(lf.pefPercentPredicted) : '--';
+
+                    document.getElementById('spiroPatternBadge').innerText = lf.obstructionPattern;
+                    document.getElementById('spiroPatternBadge').className = getPatternBadgeClass(lf.obstructionPattern);
+                    document.getElementById('spiroGoldBadge').innerText = lf.goldStage;
+                    document.getElementById('spiroInterpretationText').innerText = lf.clinicalInterpretation;
+                }
+
+                const risk = data.latestRiskAssessment;
+                if (risk) {
+                    document.getElementById('patientRiskScoreLarge').innerText = risk.overallRiskScore;
+                    document.getElementById('patientRiskLevelBadge').innerText = risk.riskLevel;
+                    document.getElementById('patientRiskLevelBadge').className = `text-xs px-2.5 py-0.5 rounded-full font-bold ${getRiskBadgeClass(risk.riskLevel)}`;
+                    document.getElementById('riskBadgeDetail').innerText = `${risk.riskLevel} (${risk.overallRiskScore}/100)`;
+                    document.getElementById('riskBadgeDetail').className = `text-xs px-2.5 py-1 rounded-full font-bold ${getRiskBadgeClass(risk.riskLevel)}`;
+
+                    const pct = Math.min(95, Math.max(0, risk.overallRiskScore));
+                    document.getElementById('riskScorePointer').style.marginLeft = `${pct}%`;
+                    document.getElementById('riskScorePointerText').innerText = risk.overallRiskScore;
+
+                    const rfList = document.getElementById('riskFactorsList');
+                    rfList.innerHTML = '';
+                    if (risk.riskFactors && risk.riskFactors.length > 0) {
+                        risk.riskFactors.forEach(rf => {
+                            const li = document.createElement('li');
+                            li.className = 'flex items-start gap-1.5';
+                            li.innerHTML = `<span class="text-rose-500 font-bold">•</span> <span>${rf}</span>`;
+                            rfList.appendChild(li);
+                        });
+                    } else {
+                        rfList.innerHTML = `<li class="text-slate-400 italic">No adverse risk factors identified.</li>`;
+                    }
+
+                    const recList = document.getElementById('clinicalRecommendationsList');
+                    recList.innerHTML = '';
+                    if (risk.clinicalRecommendations && risk.clinicalRecommendations.length > 0) {
+                        risk.clinicalRecommendations.forEach(rec => {
+                            const li = document.createElement('li');
+                            li.className = 'bg-teal-50/70 border border-teal-200/50 p-2 rounded text-slate-800';
+                            li.innerText = rec;
+                            recList.appendChild(li);
+                        });
+                    } else {
+                        recList.innerHTML = `<li class="text-slate-400 italic">No pending actions.</li>`;
+                    }
+                }
+
+                const sym = data.latestSymptomLog;
+                if (sym) {
+                    document.getElementById('symptomScoreBadge').innerText = `Score: ${sym.totalSymptomScore} / 30`;
+                    document.getElementById('symCoughSeverity').innerText = sym.coughSeverity;
+                    document.getElementById('symCoughType').innerText = sym.coughType;
+                    document.getElementById('symMmrc').innerText = `Grade ${sym.shortnessOfBreathScale} / 4`;
+                    document.getElementById('symWheezing').innerText = sym.wheezingPresent ? 'YES' : 'NO';
+                    document.getElementById('symSputum').innerText = sym.sputumColor;
+                    document.getElementById('symNocturnal').innerText = sym.nocturnalAwakening ? 'YES' : 'NO';
+
+                    if (sym.additionalNotes) {
+                        document.getElementById('symNotesContainer').classList.remove('hidden');
+                        document.getElementById('symNotesText').innerText = sym.additionalNotes;
+                    } else {
+                        document.getElementById('symNotesContainer').classList.add('hidden');
+                    }
+                }
+
+                const alerts = data.activeAlerts || [];
+                document.getElementById('patientAlertsCount').innerText = alerts.length;
+                const alertsList = document.getElementById('patientAlertsList');
+                alertsList.innerHTML = '';
+                if (alerts.length > 0) {
+                    alerts.forEach(a => {
+                        const div = document.createElement('div');
+                        div.className = `p-2.5 rounded-lg border flex justify-between items-center ${a.severity === 'CRITICAL' ? 'bg-red-50 border-red-300' : 'bg-orange-50 border-orange-300'}`;
+                        div.innerHTML = `
+                            <div>
+                                <span class="font-bold uppercase text-[10px] ${a.severity === 'CRITICAL' ? 'text-red-800' : 'text-orange-800'}">${a.alertType}</span>
+                                <p class="text-slate-800 mt-0.5 text-xs">${a.message}</p>
+                            </div>
+                            <button onclick="acknowledgeAlert(${a.id})" class="text-[11px] font-semibold bg-white border border-slate-300 hover:bg-slate-50 px-2.5 py-1 rounded shadow-sm text-slate-700 ml-2">
+                                Acknowledge
+                            </button>
+                        `;
+                        alertsList.appendChild(div);
+                    });
+                } else {
+                    alertsList.innerHTML = `<p class="text-slate-400 italic">No active unacknowledged alerts for this patient.</p>`;
+                }
+
+                updateChartWithReadings(data.longitudinalReadings || []);
+
+            } catch (e) {
+                console.error("Failed to load patient summary", e);
+            }
+        }
+
+        function updateChartWithReadings(readings) {
+            const sorted = [...readings].sort((a, b) => new Date(a.recordedAt) - new Date(b.recordedAt));
+            const labels = sorted.map(r => formatChartDate(r.recordedAt));
+            const fev1Data = sorted.map(r => r.fev1);
+            const spo2Data = sorted.map(r => r.spo2);
+
+            trendChartInstance.data.labels = labels;
+            trendChartInstance.data.datasets[0].data = fev1Data;
+            trendChartInstance.data.datasets[1].data = spo2Data;
+            trendChartInstance.update();
+        }
+
+        async function handleRegisterPatient(e) {
+            e.preventDefault();
+            const form = e.target;
+            const data = {
+                medicalRecordNumber: form.medicalRecordNumber.value,
+                fullName: form.fullName.value,
+                dateOfBirth: form.dateOfBirth.value,
+                sex: form.sex.value,
+                heightCm: parseFloat(form.heightCm.value),
+                weightKg: parseFloat(form.weightKg.value),
+                smokingStatus: form.smokingStatus.value,
+                packYears: parseFloat(form.packYears.value || 0),
+                primaryDiagnosis: form.primaryDiagnosis.value || null,
+                occupationalExposure: form.occupationalExposure.value || null,
+                emergencyContactName: form.emergencyContactName.value || null,
+                emergencyContactPhone: form.emergencyContactPhone.value || null
+            };
+
+            try {
+                const res = await fetch('/api/patients', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                if (!res.ok) {
+                    const err = await res.json();
+                    alert("Error: " + (err.message || "Failed to register patient"));
+                    return;
+                }
+                const newP = await res.json();
+                closeModal('registerPatientModal');
+                form.reset();
+                currentPatientId = newP.id;
+                await loadPatientsList();
+                await loadDashboardMetrics();
+            } catch (err) {
+                alert("Network error: " + err.message);
+            }
+        }
+
+        async function handleRecordData(e) {
+            e.preventDefault();
+            if (!currentPatientId) return;
+            const form = e.target;
+            const data = {
+                patientId: currentPatientId,
+                fev1: parseFloat(form.fev1.value),
+                fvc: parseFloat(form.fvc.value),
+                pef: form.pef.value ? parseFloat(form.pef.value) : null,
+                spo2: parseFloat(form.spo2.value),
+                respiratoryRate: parseInt(form.respiratoryRate.value),
+                heartRate: form.heartRate.value ? parseInt(form.heartRate.value) : null,
+                bodyTemperatureCelsius: form.bodyTemperatureCelsius.value ? parseFloat(form.bodyTemperatureCelsius.value) : null,
+                aqiIndex: form.aqiIndex.value ? parseInt(form.aqiIndex.value) : null,
+                measurementContext: form.measurementContext.value,
+                inhalerUsedPreTest: form.inhalerUsedPreTest.checked,
+                notes: form.notes.value || null
+            };
+
+            try {
+                const res = await fetch('/api/respiratory-data', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                if (!res.ok) {
+                    const err = await res.json();
+                    alert("Error: " + (err.message || "Failed to record telemetry"));
+                    return;
+                }
+                closeModal('recordDataModal');
+                form.reset();
+                await loadPatientData(currentPatientId);
+                await loadDashboardMetrics();
+                await loadGlobalAlerts();
+            } catch (err) {
+                alert("Network error: " + err.message);
+            }
+        }
+
+        async function handleLogSymptoms(e) {
+            e.preventDefault();
+            if (!currentPatientId) return;
+            const form = e.target;
+            const data = {
+                patientId: currentPatientId,
+                coughSeverity: form.coughSeverity.value,
+                coughType: form.coughType.value,
+                shortnessOfBreathScale: parseInt(form.shortnessOfBreathScale.value),
+                chestTightness: form.chestTightness.value,
+                sputumColor: form.sputumColor.value,
+                wheezingPresent: form.wheezingPresent.checked,
+                nocturnalAwakening: form.nocturnalAwakening.checked,
+                activityLimitation: form.activityLimitation.checked,
+                feverPresent: form.feverPresent.checked,
+                additionalNotes: form.additionalNotes.value || null
+            };
+
+            try {
+                const res = await fetch('/api/symptoms', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                if (!res.ok) {
+                    const err = await res.json();
+                    alert("Error: " + (err.message || "Failed to log symptoms"));
+                    return;
+                }
+                closeModal('logSymptomsModal');
+                form.reset();
+                await loadPatientData(currentPatientId);
+                await loadDashboardMetrics();
+                await loadGlobalAlerts();
+            } catch (err) {
+                alert("Network error: " + err.message);
+            }
+        }
+
+        async function acknowledgeAlert(alertId) {
+            try {
+                const res = await fetch(`/api/alerts/${alertId}/acknowledge`, { method: 'PUT' });
+                if (res.ok) {
+                    loadPatientData(currentPatientId);
+                    loadDashboardMetrics();
+                    loadGlobalAlerts();
+                }
+            } catch (e) {
+                console.error("Failed to acknowledge alert", e);
+            }
+        }
+
+        function downloadPdfReport() {
+            if (!currentPatientId) return;
+            window.open(`/api/reports/patient/${currentPatientId}/pdf`, '_blank');
+        }
+
+        function downloadCsvTelemetry() {
+            if (!currentPatientId) return;
+            window.open(`/api/reports/patient/${currentPatientId}/csv`, '_blank');
+        }
+
+        function scrollToAlertsSection() {
+            document.getElementById('patientAlertsCard').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
+        function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+
+        function getInitials(name) {
+            if (!name) return '--';
+            const parts = name.trim().split(/\s+/);
+            if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
+            return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+        }
+
+        function formatSmokingStatus(status) {
+            if (!status) return 'Unknown';
+            switch (status) {
+                case 'NEVER_SMOKER': return 'Never Smoked';
+                case 'FORMER_SMOKER': return 'Former Smoker';
+                case 'CURRENT_SMOKER': return 'Active Tobacco Smoker';
+                default: return status;
+            }
+        }
+
+        function getRiskBadgeClass(level) {
+            switch (level) {
+                case 'CRITICAL': return 'badge-critical';
+                case 'HIGH': return 'badge-high';
+                case 'MODERATE': return 'badge-moderate';
+                case 'LOW': default: return 'badge-low';
+            }
+        }
+
+        function getPatternBadgeClass(pattern) {
+            switch (pattern) {
+                case 'NORMAL': return 'text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800';
+                case 'OBSTRUCTIVE': return 'text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-100 text-amber-800';
+                case 'RESTRICTIVE': return 'text-xs font-semibold px-2.5 py-1 rounded-full bg-sky-100 text-sky-800';
+                case 'MIXED': return 'text-xs font-semibold px-2.5 py-1 rounded-full bg-rose-100 text-rose-800';
+                default: return 'text-xs font-semibold px-2.5 py-1 rounded-full bg-slate-100 text-slate-800';
+            }
+        }
+
+        function getPercentStatusPill(pct) {
+            if (pct >= 80) return `<span class="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded">Normal (≥80%)</span>`;
+            if (pct >= 50) return `<span class="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded">Moderate</span>`;
+            return `<span class="bg-rose-100 text-rose-800 text-[10px] font-bold px-2 py-0.5 rounded">Severe (&lt;50%)</span>`;
+        }
+
+        function formatDateTime(dtStr) {
+            if (!dtStr) return '--';
+            const d = new Date(dtStr);
+            return d.toLocaleDateString() + ' • ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        }
+
+        function formatChartDate(dtStr) {
+            if (!dtStr) return '';
+            const d = new Date(dtStr);
+            return (d.getMonth() + 1) + '/' + d.getDate() + ' ' + d.getHours() + ':' + String(d.getMinutes()).padStart(2, '0');
+        }
+    </script>
+</body>
+</html>
